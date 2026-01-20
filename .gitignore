@@ -1,0 +1,10 @@
+.vscode
+Packages
+/Playground.slnx
+/Library
+/Assets/Audio
+*.csproj
+/Temp
+/Logs
+/ProjectSettings
+/UserSettings
