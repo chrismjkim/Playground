@@ -1,32 +1,96 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class RecallableObject : MonoBehaviour
 {
+    // [SerializeField] private int pathInterval; // path의 점 사이 간격
+
+    // 이동 경로
+    private LineRenderer lineRenderer;
+    // 이동 경로 중간 메쉬
+    public List<GameObject> ghostObjects = new List<GameObject>();
+    private Mesh objectMesh;
+
+    private int fps;
+    private int ghostInterval;
+
     public bool rewindAborted { get; private set; }
     public struct KeyframeStatus
     {
         public Vector3 pos;
         public Quaternion rot;
         public Vector3 scale;
-        public Vector3 linearVel;
-        public Vector3 angularVel;
-
         public KeyframeStatus(Transform transform, Rigidbody rigid)
         {
             pos = transform.position;
             rot = transform.rotation;
             scale = transform.localScale;
-
-            linearVel = rigid.linearVelocity;
-            angularVel = rigid.angularVelocity;
         }
     }
     public KeyframeStatus[] keyframes;
     public KeyframeStatus[] capturedKeyframes; // RecallManager로 넘겨주는 keyframe 배열
     public Rigidbody rigid;
     
+    public void CreateRecallPath()
+    {
+        
+    }
+
+    public void ShowRecallPath()
+    {
+        lineRenderer.enabled = true;
+        lineRenderer.positionCount = keyframes.Length;
+        for (int index=0; index<keyframes.Length; index++)
+        {
+            // 시작점을 가장 최근 키프레임으로 역순배치
+            lineRenderer.SetPosition(index, keyframes[keyframes.Length - 1 - index].pos);
+        }
+        int fps = Mathf.FloorToInt(1 / GameManager.instance.timer.baseFixedDeltaTime);
+        ghostInterval = fps * GameManager.instance.recall.ghostIntervalSeconds;
+        for (int index = ghostInterval-1; index < keyframes.Length; index += ghostInterval)
+        {
+            CreateGhostMesh(keyframes[index]);
+        }
+    }
+    public void HideRecallPath()
+    {
+        lineRenderer.enabled = false;
+        ClearAllGhosts();
+    }
+    private void CreateGhostMesh(KeyframeStatus status)
+    {
+        GameObject ghost = new GameObject("RecallGhost");
+        ghost.transform.position = status.pos;
+        ghost.transform.rotation = status.rot;
+        ghost.transform.localScale = status.scale;
+
+        MeshFilter mf = ghost.AddComponent<MeshFilter>();
+        mf.sharedMesh = objectMesh;
+        MeshRenderer mr = ghost.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = GameManager.instance.recall.pathMaterial;
+        
+        ghostObjects.Add(ghost);
+    }
+    private void DeleteGhostMesh(int index)
+    {
+        GameObject target = ghostObjects[index];
+        Destroy(target);
+    }
+
+    public void ClearAllGhosts()
+    {
+        foreach (var g in ghostObjects)
+        {
+            Destroy(g);
+        }
+        ghostObjects.Clear();
+    }
+
+
     private void Awake()
     {
         rigid = GetComponent<Rigidbody>();
@@ -34,7 +98,15 @@ public class RecallableObject : MonoBehaviour
 
     private void Start()
     {
-        if(GameManager.instance.recall.recallableObjects == null) { }
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
+        lineRenderer.startWidth = 0.1f;
+        lineRenderer.endWidth = 0.1f;
+        lineRenderer.material = GameManager.instance.recall.pathMaterial;
+        lineRenderer.positionCount = 0;
+        lineRenderer.enabled = false;
+        if (TryGetComponent<MeshFilter>(out var mf)) objectMesh = mf.sharedMesh;
+
+        if (GameManager.instance.recall.recallableObjects == null) { }
         else
         {
             GameManager.instance.recall.recallableObjects.Add(this);
@@ -64,11 +136,6 @@ public class RecallableObject : MonoBehaviour
             keyframes[index] = keyframes[index - 1];
         }
         keyframes[0] = new KeyframeStatus(transform, rigid);
-    }
-
-    public void OnDisable()
-    {
-        GameManager.instance.recall.recallableObjects.Remove(this);
     }
 
     public IEnumerator startRewind(int token)
@@ -102,6 +169,7 @@ public class RecallableObject : MonoBehaviour
         }
         int fps = Mathf.FloorToInt(1 / Time.fixedDeltaTime);
         int frames = capturedKeyframes.Length;
+        int deletedGhosts = 0;
         for (int index = 0; index < frames; index++)
         {
             if (!GameManager.instance.recall.IsRecallTokenValid(token))
@@ -118,26 +186,46 @@ public class RecallableObject : MonoBehaviour
             }
             rigid.MovePosition(capturedKeyframes[index].pos);
             rigid.MoveRotation(capturedKeyframes[index].rot);
-            if (Mathf.FloorToInt((frames - index) / fps) > 5)
+            // 라인렌더러 수정하기
+            lineRenderer.positionCount--;
+            // 고스트 지우기
+            if ((index%ghostInterval) == ghostInterval-1)
             {
-                if (index%fps == 0)
-                    AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
+                // 최근 생성된 고스트부터 삭제
+                Debug.Log(ghostObjects.Count - 1 - deletedGhosts);
+                DeleteGhostMesh(deletedGhosts);
+                deletedGhosts++;
             }
-            else if (Mathf.FloorToInt((frames - index) / fps) > 1)
-            {
-                if (index % (fps / 2) == 0)
-                {
-                    AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
-                }
-            }
-            else
-            {
-                if (index % (fps / 4) == 0)
-                {
-                    AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
-                }
-            }
+            PlayTickSound(frames, index, fps);
             yield return new WaitForFixedUpdate();
         }
+        ClearAllGhosts();
+    }
+    private void PlayTickSound(int frames, int index, int fps)
+    {
+        if (Mathf.FloorToInt((frames - index) / fps) > 5)
+        {
+            if (index % fps == 0)
+                AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
+        }
+        else if (Mathf.FloorToInt((frames - index) / fps) > 1)
+        {
+            if (index % (fps / 2) == 0)
+            {
+                AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
+            }
+        }
+        else
+        {
+            if (index % (fps / 4) == 0)
+            {
+                AudioManager.instance.PlaySfx(AudioManager.Sfx.Tick);
+            }
+        }
+    }
+
+    public void OnDisable()
+    {
+        GameManager.instance.recall.recallableObjects.Remove(this);
     }
 }

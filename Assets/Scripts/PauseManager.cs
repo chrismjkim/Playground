@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PauseManager : MonoBehaviour
 {
-    [SerializeField] private float baseFixedDeltaTime;
+    [SerializeField] public float baseFixedDeltaTime;
     void Start()
     {
         baseFixedDeltaTime = Time.fixedDeltaTime;

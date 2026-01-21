@@ -13,6 +13,12 @@ public class RecallManager : MonoBehaviour
     [SerializeField] public float recallTime=10f;
     [SerializeField] public int maxRecallFrames;
 
+    [Header("경로 이펙트")]
+    [SerializeField] public Material pathMaterial;
+    [SerializeField] public int ghostIntervalSeconds;
+    [SerializeField] public int pathUnitLength;
+
+
     [Header("클릭 관련 변수")]
     public bool clickStarted;
     public bool clickPerformed;
@@ -153,8 +159,13 @@ public class RecallManager : MonoBehaviour
         if (detectedRecallableObj!=null)
         {
             disableOutline(detectedRecallableObj);
+            RecallableObject prevObj = detectedRecallableObj.GetComponent<RecallableObject>();
+            prevObj.HideRecallPath();
         }
         detectedRecallableObj = newObject;
+        // 오브젝트의 이동경로를 생성한다
+        RecallableObject obj = detectedRecallableObj.GetComponent<RecallableObject>();
+        obj.ShowRecallPath();
         
     }
 
@@ -163,6 +174,10 @@ public class RecallManager : MonoBehaviour
         if (detectedRecallableObj)
         {
             disableOutline(detectedRecallableObj);
+            // 오브젝트의 이동경로를 제거한다
+            RecallableObject obj = detectedRecallableObj.GetComponent<RecallableObject>();
+            obj.HideRecallPath();
+            obj.ClearAllGhosts();
         }
         detectedRecallableObj = null;
     }
