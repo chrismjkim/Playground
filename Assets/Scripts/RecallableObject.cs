@@ -192,7 +192,6 @@ public class RecallableObject : MonoBehaviour
             if ((index%ghostInterval) == ghostInterval-1)
             {
                 // 최근 생성된 고스트부터 삭제
-                Debug.Log(ghostObjects.Count - 1 - deletedGhosts);
                 DeleteGhostMesh(deletedGhosts);
                 deletedGhosts++;
             }

@@ -1093,7 +1093,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 6.000001, y: 0.40000013, z: 6.000001}
+  m_Size: {x: 6, y: 0.4, z: 6}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &533015256
 GameObject:
@@ -2383,7 +2383,7 @@ MonoBehaviour:
   maxRecallFrames: 0
   pathMaterial: {fileID: 2100000, guid: 124ad34a12d23334e86db398646a177a, type: 2}
   ghostIntervalSeconds: 5
-  pathLenghtUnit: 0
+  pathUnitLength: 0
   clickStarted: 0
   clickPerformed: 0
   clickCanceled: 0
