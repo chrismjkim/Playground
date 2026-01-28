@@ -206,6 +206,14 @@ public class Player : MonoBehaviour
         }
     }
 
+    public void OnSprint(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            
+        }
+    }
+
     private bool IsGrounded()
     {
         if (groundCheck == null) return false;
